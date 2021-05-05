@@ -1611,7 +1611,8 @@ void HybridSelfIndex::auxiliarLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 }
 #pragma endregion
 
-void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+#pragma region First Version
+/*void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
 	string query = string((char *)pat);
 	int_vector<64> list = sdsl::locate(FMI, query.begin(), query.begin()+m);
 	size_t nLoc = list.size();
@@ -1660,8 +1661,7 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 					ps_tid[i+1] = ps_tid[i] + cont_tid[i];
 					//s += a_tid[i].size();
 				}
-				/*cout << endl;
-				cout << s << " " <<nLoc << endl;*/
+
 			}
 			int nn = a_tid[tid].size();
 			for(long i = 0; i < a_tid[tid].size(); ++i)
@@ -1691,7 +1691,93 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 	}
 	else
 		*nOcc=0;
+}*/
+#pragma endregion
+void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ)
+{
+	string query = string((char *)pat);
+	auto list = sdsl::locate(FMI, query.begin(), query.begin()+m);
+	size_t nLoc = list.size();
+
+	if (nLoc){
+		ulong *A, *ps, *bool_resp, *pos;
+		*occ = A = ps = bool_resp = pos = new ulong[nLoc];
+		ulong cs = nLoc/nt;
+		#pragma omp parallel shared(BL_il, A, ps, bool_resp, pos)
+		{
+			int tid = omp_get_thread_num();
+			ulong b = tid*cs;
+			ulong e = b+cs <= N ? b+cs : N;
+			ulong pr;
+			uint dx;
+
+			for(i=b; i<e; i++){
+				if (isPrimary(list[i], m, &pr, &dx)){
+					bool_resp[i] = 1;
+					pos[i] = getPosPhraT(pr) - dx;			
+				}else{
+					if (dx){
+						if (BL_il[pr-1]){
+							bool_resp[i] = 1;
+							pos[i] = getPosPhraT(pr) - dx;
+						}
+						else{
+							bool_resp[i] = 0;
+						}
+					}else{
+						if (BL_il[pr]){
+							bool_resp[i] = 1;
+							pos[i] = getPosPhraT(pr);
+						}
+						else
+						{
+							bool_resp[i] = 0;
+						}
+					}
+				}
+			}
+			#pragma omp barrier
+			//Calcular la prefix sum del bool vector
+
+
+
+
+
+
+
+
+			#pragma omp barrier
+			//Rellenar en A siempre que el bool_vector sea 1, en el indice del prefixsum - 1, el valor de pos. (A[ps[i]-1] = pos[i]);
+			for(int i = b; i < e; ++i)
+			{
+				if(bool_resp[i])
+				{
+					A[ps[i]-1] = pos[i];
+				}
+			}
+			#pragma omp barrier
+		}
+		
+
+		
+		
+		ulong nn = ps[nLoc-1];
+		// search secondary occurrence from primary ones...
+		*nOcc = nn;
+		ulong r, currN;
+		currN = nLoc;
+		for(i=0; i<nn; i++){
+			if (findPredecesor(A[i], &r)){
+				locateSecOcc(0, r, A[i], m, nOcc, occ, &currN);
+				A = *occ;
+			}
+		}
+	}else
+		*nOcc=0;
 }
+
+
+
 #pragma endregion
 
 #pragma region Other Locates
