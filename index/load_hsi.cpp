@@ -6,6 +6,8 @@ bool RUN_EXP = 1;		// true: run the experiments for locate
 uint REPET = 100;
 uint MAX_M = 160;
 
+int mode;
+
 // Structure with all globals parameters program
 typedef struct {
 	uchar *seq;				// original sequence (1 byte for symbol)
@@ -35,7 +37,8 @@ int main(int argc, char *argv[]) {
 
 	cout << "Running load_hsi_ms.cpp ..." << endl;
 
-	if(argc != 6){
+
+	if(argc != 7){
 		cout << "ERRORR !! " << endl;
 		cout << "load_hsi_ms's usage requires 2 parameters:" << endl;
 		cout << "<dirStore> the directory where to read the structures" << endl;
@@ -57,6 +60,8 @@ int main(int argc, char *argv[]) {
 	strcpy(par->prefixResult, argv[3]);
 	MAX_M = atoi(argv[4]);
 	REPET = atoi(argv[5]);
+	mode = atoi(argv[6]);
+	
 
 	cout << "load_hsi_ms parameters..." << endl;
 	cout << "Base Name path: " << par->prefixStore << endl;
@@ -67,10 +72,14 @@ int main(int argc, char *argv[]) {
 
 	par->index = new HybridSelfIndex(par->prefixStore);
 
+	par->index->setNumThreads(mode);
+
 	par->n = par->index->n;
 	par->M = par->index->M;
 	cout << "n: " << par->n << endl;
 	cout << "M: " << par->M << endl;
+
+	
 
 	if (TEST_IND){
 		// Loading FMI_TEST to create random patterns
@@ -122,9 +131,6 @@ void loadPatterns(ParProgL *par, uint m){
 
 	strcpy(filePatt, "");
 	strcpy(filePatt, par->dirPatt);
-	strcpy(str, "");
-	sprintf(str, "patt_m%d", m);
-	strcat(filePatt, str);
 	cout << "Reading patterns from "<< filePatt << std::endl;
 
 	par->patt = new uchar*[REPET];
@@ -172,13 +178,14 @@ void runExperimentLocate(ParProgL *par, uint m){
 	for (k=0; k<REPET; k++){
 		//cout << "k=" << k << endl;
 		t = getTime_ms();
-		par->index->locate(par->patt[k], m, &nOcc, &occ);
+		par->index->locate(par->patt[k], m, &nOcc, &occ, mode);
 		t = getTime_ms() - t;
 		avgTime += t/(double)REPET;
 		avgnOcc += nOcc;
 		if (nOcc)
 			delete [] occ;
 	}
+	cout << "nOcc found : " << int(avgnOcc) << endl;
 	avgnOcc /= (float)REPET;
 	cout << "Average CPU time per execution: " << avgTime*1000.0 << " Microseconds" << endl;
 	cout << "Average nOcc found : " << avgnOcc << endl;
@@ -237,15 +244,14 @@ void runExperiments(ParProgL *par){
 	cout << "====================================================" << endl;
 
 	uint TRUE_REP = REPET;
-	REPET = 1000;
-	loadPatterns(par, 10);
-	runExperimentLocate(par, 10);
-	REPET = TRUE_REP;
+	loadPatterns(par, MAX_M);
+	runExperimentLocate(par, MAX_M);
+	/*REPET = TRUE_REP;
 
 	for (uint m=20; m<=MAX_M; m*=2){
 		loadPatterns(par, m);
 		runExperimentLocate(par, m);
-	}
+	}*/
 
 	delete [] (par->patt);
 }
@@ -319,7 +325,7 @@ void testLocateLoad(ParProgL *par){
 
 			strncpy((char*) pat, query.c_str(), m);
 			//cout << "Pattern = [" << pat << "]" << endl;
-			par->index->locate(pat, m, &nOcc, &occ);
+			par->index->locate(pat, m, &nOcc, &occ,mode);
 
 			if(nPry != nOcc){
 				if (m>1){

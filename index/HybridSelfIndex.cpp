@@ -1,3 +1,4 @@
+#pragma region Inits
 #include "HybridSelfIndex.h"
 
 bool HybridSelfIndex::TRACE = false;
@@ -9,6 +10,12 @@ bool HybridSelfIndex::CREATE_FMI_TEST = false;
 uchar HybridSelfIndex::MIN_CHAR = '\1';
 uchar HybridSelfIndex::REPLACE_CHAR = '\n';
 
+#define MIN_OCC 100000
+int nt;
+
+#pragma endregion
+
+#pragma region Constructors
 HybridSelfIndex::HybridSelfIndex(char dirSaveLoad[300]){
 	double tLoad = getTime_ms();
 	{
@@ -61,7 +68,23 @@ HybridSelfIndex::HybridSelfIndex(char *parserFile, uint optM, char dirSaveLoad[3
 	cout << " ### Index size " << sizeDS << " bytes = " << sizeDS/(1024.0*1024.0) << " MiB = " << (float)sizeDS*8.0/(float)n << " bpc" << endl;
 	cout << "====================================================" << endl << endl;
 }
+#pragma endregion
 
+#pragma region Debug
+void HybridSelfIndex::getNumThreads() 
+{
+	#pragma omp parallel
+		#pragma omp single
+			cout << "La cantidad de threads es: "<< omp_get_num_threads() << '\n';
+}
+
+void HybridSelfIndex::setNumThreads(int num_threads)
+{
+	omp_set_num_threads(num_threads);
+}
+#pragma endregion
+
+#pragma region Other Stuff
 void HybridSelfIndex::buildBasicStructures(ulong **Source){
 	ulong i, j, k, cont, posX, posXF, antX, antXF, lenS, posPar, posFT, nz, lenArray;
 	bool found, prevSM;
@@ -1433,16 +1456,27 @@ ulong HybridSelfIndex::searchPhraTxt(ulong x, ulong *pos, uint *len){
 
 	return phr-2;
 }
+#pragma endregion
 
-// =============================================================================================================
-// LOCATE METHODS
-// =============================================================================================================
-void HybridSelfIndex::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+#pragma region Locate Methods
+
+#pragma region Initial Locate
+void HybridSelfIndex::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ, int mode){
 	if (m==1)
 		locateAChar(pat, nOcc, occ);
 	else{
 		if (m<=M)
-			locateUptoM(pat, m, nOcc, occ);
+		{
+			if(mode >= 1)
+			{
+				nt = mode;
+				parallelLocateUptoM(pat, m, nOcc, occ);				
+			}
+			else
+			{
+				locateUptoM(pat, m, nOcc, occ);
+			}
+		}
 		else{
 			if (m<=(M<<1))
 				locateUpto2M(pat, m, nOcc, occ);
@@ -1451,6 +1485,9 @@ void HybridSelfIndex::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ){
 		}
 	}
 }
+#pragma endregion
+
+#pragma region Sequential Locate
 
 void HybridSelfIndex::locateAChar(uchar *pat, ulong *nOcc, ulong **occ){
 	pat[1]='\0';
@@ -1520,6 +1557,7 @@ void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
 
 		// search secondary occurrence from primary ones...
 		*nOcc = nn;
+		
 		for(i=0; i<nn; i++){
 			if (findPredecesor(A[i], &r)){
 				locateSecOcc(0, r, A[i], m, nOcc, occ, &currN);
@@ -1529,7 +1567,134 @@ void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
 	}else
 		*nOcc=0;
 }
+#pragma endregion
 
+#pragma region Parallel Locate
+
+#pragma region Auxiliar Locate
+void HybridSelfIndex::auxiliarLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ, int_vector<64> &list, size_t nLoc)
+{
+	if (nLoc){
+		ulong r, currN, i, pr, nn, *A;
+		uint dx;
+
+		*occ = A = new ulong[nLoc];
+		currN = nLoc;
+		for(i=nn=0; i<nLoc; i++){
+			if (isPrimary(list[i], m, &pr, &dx)){
+				A[nn] = getPosPhraT(pr) - dx;
+				nn++;
+			}else{
+				if (dx){
+					if (BL_il[pr-1]){
+						A[nn] = getPosPhraT(pr) - dx;
+						nn++;
+					}
+				}else{
+					if (BL_il[pr]){
+						A[nn] = getPosPhraT(pr);
+						nn++;
+					}
+				}
+			}
+		}
+
+		*nOcc = nn;
+		for(i=0; i<nn; i++){
+			if (findPredecesor(A[i], &r)){
+				locateSecOcc(0, r, A[i], m, nOcc, occ, &currN);
+				A = *occ;
+			}
+		}
+	}else
+		*nOcc=0;
+}
+#pragma endregion
+
+void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+	string query = string((char *)pat);
+	int_vector<64> list = sdsl::locate(FMI, query.begin(), query.begin()+m);
+	size_t nLoc = list.size();
+
+
+	if (nLoc > MIN_OCC){
+		ulong *A;
+		*occ = A = new ulong[nLoc];
+		vector<long> cont_tid(nt,0);
+		vector<long> ps_tid(nt+1,0);
+		vector<vector<ulong>> a_tid(nt);
+		long cs = nLoc/nt;
+		int s = 0;
+		#pragma omp parallel shared(cont_tid, ps_tid,nLoc, list, nt,cs)
+		{
+			int tid = omp_get_thread_num();
+			
+			ulong pr;
+			uint dx;
+			long b = tid*cs;
+        	long e = b+cs > nLoc ? nLoc : b+cs;
+			for(long i=b; i< e; i++){
+				if (isPrimary(list[i], m, &pr, &dx)){
+					a_tid[tid].push_back(getPosPhraT(pr) - dx);
+					cont_tid[tid]++;
+				}else{
+					if (dx){
+						if (BL_il[pr-1]){
+							a_tid[tid].push_back(getPosPhraT(pr) - dx);
+							cont_tid[tid]++;
+						}
+					}else{
+						if (BL_il[pr]){
+							a_tid[tid].push_back(getPosPhraT(pr));
+							cont_tid[tid]++;
+						}
+					}
+				}
+			}
+			#pragma omp barrier
+			#pragma omp single
+			{
+				for(int i = 0; i < nt; ++i)
+				{
+					//cout << cont_tid[i] << " ";
+					ps_tid[i+1] = ps_tid[i] + cont_tid[i];
+					//s += a_tid[i].size();
+				}
+				/*cout << endl;
+				cout << s << " " <<nLoc << endl;*/
+			}
+			int nn = a_tid[tid].size();
+			for(long i = 0; i < a_tid[tid].size(); ++i)
+			{
+				A[(i+ps_tid[tid])] = a_tid[tid][i];
+			}
+			#pragma omp barrier
+		}
+
+		ulong nn = ps_tid[nt]; //RECORDAR ASIGNAR VALOR A NN
+		// search secondary occurrence from primary ones...
+		*nOcc = nn;
+
+		
+		ulong r, currN;
+		currN = nLoc;
+		for(long i=0; i<nn; i++){
+			if (findPredecesor(A[i], &r)){
+				locateSecOcc(0, r, A[i], m, nOcc, occ, &currN);
+				A = *occ;
+			}
+		}
+	}
+	else if(nLoc <= MIN_OCC)
+	{
+		auxiliarLocateUptoM(pat, m, nOcc, occ, list, nLoc);
+	}
+	else
+		*nOcc=0;
+}
+#pragma endregion
+
+#pragma region Other Locates
 // put the last item in the top and sort the queue
 void HybridSelfIndex::setTopMinQ(ulong *Q, ulong pos){
 	ulong j, l, u;
@@ -2169,7 +2334,10 @@ void HybridSelfIndex::locateLargeM_b(uchar *pat, uint m, ulong *nOcc, ulong **oc
 		}
 		cout << endl;
 	}*/
+#pragma endregion
+#pragma endregion
 
+#pragma region Other Stuff 2
 	//===================================================================
 	// Process the list
 	// ==================================================================
@@ -3023,5 +3191,6 @@ HybridSelfIndex::~HybridSelfIndex() {
 		decltype(FMI_TEST) emptyFMITEST;
 		FMI_TEST.swap(emptyFMITEST);
 	}
+#pragma endregion
 }
 

@@ -2,7 +2,7 @@ SDSL_DIR=/home/wrathiontbp
 RMQ_DIR=/home/wrathiontbp/Documentos/rmq
 
 CPP=g++
-CPPFLAGS=-std=c++11 -O3 -DNDEBUG -march=native
+CPPFLAGS=-std=c++11 -O3 -DNDEBUG -march=native -fopenmp
 INCLUDES=-I$(SDSL_DIR)/include/ -I$(RMQ_DIR)/includes/
 LIB=$(SDSL_DIR)/lib/libsdsl.a $(SDSL_DIR)/lib/libdivsufsort.a $(SDSL_DIR)/lib/libdivsufsort64.a $(RMQ_DIR)/rmqrmmBP.a
 OBJECTS=HybridSelfIndex.o
@@ -11,7 +11,9 @@ BINS=build_index
 all: clean stats $(OBJECTS) $(BINS)
 
 HybridSelfIndex.o: HybridSelfIndex.cpp
-	$(CPP) $(CPPFLAGS) $(INCLUDES) -c HybridSelfIndex.cpp
+	@$(CPP) $(CPPFLAGS) $(INCLUDES) -c HybridSelfIndex.cpp
+	@echo " [BLD] Building binary loadDL_hsi"
+	@$(CPP) $(CPPFLAGS) $(INCLUDES) -o load_hsi load_hsi.cpp $(OBJECTS) $(LIB)
 
 stats:
 	@echo
