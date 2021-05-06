@@ -1,5 +1,6 @@
 #pragma region Inits
 #include "HybridSelfIndex.h"
+#include<omp.h>
 
 bool HybridSelfIndex::TRACE = false;
 bool HybridSelfIndex::SHOW_SIZE = true;
@@ -10,7 +11,7 @@ bool HybridSelfIndex::CREATE_FMI_TEST = false;
 uchar HybridSelfIndex::MIN_CHAR = '\1';
 uchar HybridSelfIndex::REPLACE_CHAR = '\n';
 
-#define MIN_OCC 100000
+#define MIN_OCC 1
 int nt;
 
 #pragma endregion
@@ -1494,7 +1495,12 @@ void HybridSelfIndex::locateAChar(uchar *pat, ulong *nOcc, ulong **occ){
 	string query = string((char *)pat);
 	size_t nLoc = sdsl::count(FMI, query.begin(), query.begin()+1);
 
-	if (nLoc){
+	long* a = new long[50000000];
+    for(long i = 0; i < nLoc; ++i){
+        a[i] = 5;
+    }
+
+	/*if (nLoc){
 		ulong r, currN, i, pr, nn, *A;
 		uint dx;
 
@@ -1519,15 +1525,21 @@ void HybridSelfIndex::locateAChar(uchar *pat, ulong *nOcc, ulong **occ){
 			}
 		}
 	}else
-		*nOcc=0;
+		*nOcc=0;*/
 }
 
 void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
 	string query = string((char *)pat);
+	double t;
+	t = omp_get_wtime();
 	auto list = sdsl::locate(FMI, query.begin(), query.begin()+m);
-	size_t nLoc = list.size();
-
+	int nLoc = list.size();
+	t = omp_get_wtime() - t;
+	cout << "T locate = " << t << endl;
+	
+	
 	if (nLoc){
+		t = omp_get_wtime();
 		ulong r, currN, i, pr, nn, *A;
 		uint dx;
 
@@ -1557,15 +1569,20 @@ void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
 
 		// search secondary occurrence from primary ones...
 		*nOcc = nn;
-		
+		t = omp_get_wtime() - t;
+		cout << "T loop = " << t << endl;
+		t = omp_get_wtime();
 		for(i=0; i<nn; i++){
 			if (findPredecesor(A[i], &r)){
 				locateSecOcc(0, r, A[i], m, nOcc, occ, &currN);
 				A = *occ;
 			}
 		}
+		t = omp_get_wtime() - t;
+		cout << "T rec = " << t << endl;
 	}else
 		*nOcc=0;
+
 }
 #pragma endregion
 
@@ -1612,13 +1629,18 @@ void HybridSelfIndex::auxiliarLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 #pragma endregion
 
 #pragma region First Version
-/*void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
 	string query = string((char *)pat);
-	int_vector<64> list = sdsl::locate(FMI, query.begin(), query.begin()+m);
-	size_t nLoc = list.size();
-
+	double t;
+	t = omp_get_wtime();
+	auto list = sdsl::locate(FMI, query.begin(), query.begin()+m);
+	int nLoc = list.size();
+	t = omp_get_wtime() - t;
+	cout << "T locate = " << t << endl;
+	
 
 	if (nLoc > MIN_OCC){
+		t = omp_get_wtime();
 		ulong *A;
 		*occ = A = new ulong[nLoc];
 		vector<long> cont_tid(nt,0);
@@ -1674,8 +1696,9 @@ void HybridSelfIndex::auxiliarLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 		ulong nn = ps_tid[nt]; //RECORDAR ASIGNAR VALOR A NN
 		// search secondary occurrence from primary ones...
 		*nOcc = nn;
-
-		
+		t = omp_get_wtime() - t;
+		cout << "T loop = " << t << endl;
+		t = omp_get_wtime();
 		ulong r, currN;
 		currN = nLoc;
 		for(long i=0; i<nn; i++){
@@ -1684,6 +1707,8 @@ void HybridSelfIndex::auxiliarLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 				A = *occ;
 			}
 		}
+		t = omp_get_wtime() - t;
+		cout << "T rec = " << t << endl;
 	}
 	else if(nLoc <= MIN_OCC)
 	{
@@ -1691,27 +1716,52 @@ void HybridSelfIndex::auxiliarLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 	}
 	else
 		*nOcc=0;
-}*/
+	
+}
 #pragma endregion
-void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ)
+
+/*void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ)
 {
 	string query = string((char *)pat);
+	double t;
+	t = omp_get_wtime();
 	auto list = sdsl::locate(FMI, query.begin(), query.begin()+m);
-	size_t nLoc = list.size();
-
-	if (nLoc){
-		ulong *A, *ps, *bool_resp, *pos;
-		*occ = A = ps = bool_resp = pos = new ulong[nLoc];
+	int nLoc = list.size();
+	t = omp_get_wtime() - t;
+	cout << "T locate = " << t << endl;
+	//int nLoc = 500000000;
+	t = omp_get_wtime();
+	long* a = new long[nLoc];
+    long cs = nLoc/nt;
+    #pragma omp parallel num_threads(nt) shared(a,cs)
+    {
+        int tid = omp_get_thread_num();
+        long b = tid*cs;
+        long e = b+cs > nLoc ? nLoc : b+cs;
+        for(long i = b; i < e; ++i){
+            a[i] = 5;
+        }
+    }
+	t = omp_get_wtime() - t;
+	cout << "T loop = " << t << endl;
+	/*if (nLoc)
+	{
+		ulong *A;
+		long *ps, *bool_resp, *pos;
+		*occ = A = new ulong[nLoc];
+		ps = bool_resp = pos = new long[nLoc];
+		memset(bool_resp, 0,nLoc);
 		ulong cs = nLoc/nt;
-		#pragma omp parallel shared(BL_il, A, ps, bool_resp, pos)
+		cout << "bool " << bool_resp[0]; 
+		#pragma omp parallel
 		{
 			int tid = omp_get_thread_num();
-			ulong b = tid*cs;
-			ulong e = b+cs <= N ? b+cs : N;
+			long b = tid*cs;
+			long e = b+cs > nLoc ? nLoc : b+cs;
 			ulong pr;
 			uint dx;
 
-			for(i=b; i<e; i++){
+			for(long i=b; i<e; i++){
 				if (isPrimary(list[i], m, &pr, &dx)){
 					bool_resp[i] = 1;
 					pos[i] = getPosPhraT(pr) - dx;			
@@ -1736,19 +1786,46 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 					}
 				}
 			}
+			#pragma omp single
+			cout << "Hola1\n" << " bool " << bool_resp[0] << endl;
 			#pragma omp barrier
-			//Calcular la prefix sum del bool vector
-
-
-
-
-
-
-
-
-			#pragma omp barrier
+		}
+			///Calcular la prefix sum del bool vector
+			int log_nLoc = ceil(log2(nLoc));
+			for(long k = 0; k < log_nLoc; k++)
+			{
+				for(long i = b; i < e; ++i)
+				{
+					if(i >= (1<<k))
+					{
+						ps[i] = bool_resp[i] + bool_resp[i - (1 << k)];
+					}
+					else
+					{
+						ps[i] = bool_resp[i];
+					}
+				}
+			}
+			//#pragma omp barrier
+		cout << "Hola1\n" << " bool " << bool_resp[0] << endl;
+		ps[0] = bool_resp[0];
+		for(long i = 1; i < nLoc; ++i)
+		{
+			cout << bool_resp[i-1] << " ";
+			ps[i] = ps[i-1] + bool_resp[i];
+			
+		}
+		cout << bool_resp[nLoc-1] << " ";
+		cout << "Hola2\n";
+		ulong nn = ps[nLoc-1];
+		cout << nn << '\n';
 			//Rellenar en A siempre que el bool_vector sea 1, en el indice del prefixsum - 1, el valor de pos. (A[ps[i]-1] = pos[i]);
-			for(int i = b; i < e; ++i)
+		#pragma omp parallel shared(BL_il, A, ps, bool_resp, pos)
+		{
+			int tid = omp_get_thread_num();
+			ulong b = tid*cs;
+			ulong e = b+cs <= nLoc ? b+cs : nLoc;	
+			for(long i = b; i < e; ++i)
 			{
 				if(bool_resp[i])
 				{
@@ -1757,16 +1834,13 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 			}
 			#pragma omp barrier
 		}
+		cout << "Hola3\n";
 		
-
-		
-		
-		ulong nn = ps[nLoc-1];
 		// search secondary occurrence from primary ones...
 		*nOcc = nn;
 		ulong r, currN;
 		currN = nLoc;
-		for(i=0; i<nn; i++){
+		for(long i=0; i<nn; i++){
 			if (findPredecesor(A[i], &r)){
 				locateSecOcc(0, r, A[i], m, nOcc, occ, &currN);
 				A = *occ;
@@ -1774,7 +1848,7 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 		}
 	}else
 		*nOcc=0;
-}
+}*/
 
 
 

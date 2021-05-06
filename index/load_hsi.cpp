@@ -177,9 +177,9 @@ void runExperimentLocate(ParProgL *par, uint m){
 
 	for (k=0; k<REPET; k++){
 		//cout << "k=" << k << endl;
-		t = getTime_ms();
+		t = omp_get_wtime();
 		par->index->locate(par->patt[k], m, &nOcc, &occ, mode);
-		t = getTime_ms() - t;
+		t = omp_get_wtime() - t;
 		avgTime += t/(double)REPET;
 		avgnOcc += nOcc;
 		if (nOcc)
@@ -187,7 +187,7 @@ void runExperimentLocate(ParProgL *par, uint m){
 	}
 	cout << "nOcc found : " << int(avgnOcc) << endl;
 	avgnOcc /= (float)REPET;
-	cout << "Average CPU time per execution: " << avgTime*1000.0 << " Microseconds" << endl;
+	cout << "Average CPU time per execution: " << avgTime << " Microseconds" << endl;
 	cout << "Average nOcc found : " << avgnOcc << endl;
 	cout << "Average CPU time per occurrence: " << (avgTime/avgnOcc)*1000.0 << " Microseconds" << endl;
 	cout << "Size : " << par->index->sizeDS*8.0/(float)par->n << endl;
