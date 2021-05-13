@@ -1462,7 +1462,7 @@ ulong HybridSelfIndex::searchPhraTxt(ulong x, ulong *pos, uint *len){
 #pragma region Locate Methods
 
 #pragma region Initial Locate
-void HybridSelfIndex::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ, int mode){
+void HybridSelfIndex::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ, int mode, double &tloc, double &tfs){
 	if (m==1)
 		locateAChar(pat, nOcc, occ);
 	else{
@@ -1471,11 +1471,11 @@ void HybridSelfIndex::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ, int m
 			if(mode >= 1)
 			{
 				nt = mode;
-				parallelLocateUptoM(pat, m, nOcc, occ);				
+				parallelLocateUptoM(pat, m, nOcc, occ, tloc, tfs);				
 			}
 			else
 			{
-				locateUptoM(pat, m, nOcc, occ);
+				locateUptoM(pat, m, nOcc, occ, tloc, tfs);
 			}
 		}
 		else{
@@ -1528,13 +1528,14 @@ void HybridSelfIndex::locateAChar(uchar *pat, ulong *nOcc, ulong **occ){
 		*nOcc=0;*/
 }
 
-void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ, double &tloc, double &tfs){
 	string query = string((char *)pat);
 	double t;
 	t = omp_get_wtime();
 	auto list = sdsl::locate(FMI, query.begin(), query.begin()+m);
 	int nLoc = list.size();
 	t = omp_get_wtime() - t;
+	tloc+=t;
 	cout << "T locate = " << t << endl;
 	
 	
@@ -1576,6 +1577,7 @@ void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
 			}
 		}
 		t = omp_get_wtime() - t;
+		tfs+=t;
 		cout << "T loop + rec = " << t << endl;
 		cout << "------------" << endl;
 	}else
@@ -1673,14 +1675,14 @@ void HybridSelfIndex::locateSecOccAuxiliar(ulong l, ulong r, ulong posX, uint m,
 }
 
 #pragma region First Version
-void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ, double &tloc, double &tfs){
 	string query = string((char *)pat);
 	double t;
 	t = omp_get_wtime();
 	auto list = sdsl::locate(FMI, query.begin(), query.begin()+m);
 	int nLoc = list.size();
 	t = omp_get_wtime() - t;
-	
+	tloc += t;
 	cout << "T locate = " << t << endl;
 	
 
@@ -1757,6 +1759,7 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 		}
 		*occ = A;
 		t = omp_get_wtime() - t;
+		tfs += t;
 		cout << "T loop + rec = " << t << endl;
 		cout << "------------" << endl;
 

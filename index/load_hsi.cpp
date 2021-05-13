@@ -168,7 +168,7 @@ void runExperimentLocate(ParProgL *par, uint m){
 	float avgnOcc;
 	char aFile[400];
 	char str[100];
-	double tt, tt2, ttt=0.0;
+	double tt, tt2, ttt=0.0, tloc= 0.0, tfs = 0.0;
 	cout << "____________________________________________________" << endl;
 	cout << "  Locate " << REPET << " patterns of length m = " << m << endl;
 	avgTime = 0.0;
@@ -177,11 +177,14 @@ void runExperimentLocate(ParProgL *par, uint m){
 	for(int i = 0; i < nREP; ++i){
 	ulong k, nOcc, *occ;
 	
+	
+
+
 	tt = omp_get_wtime();
 	for (k=0; k<REPET; k++){
 		//cout << "k=" << k << endl;
 		t = omp_get_wtime();
-		par->index->locate(par->patt[k], m, &nOcc, &occ, mode);
+		par->index->locate(par->patt[k], m, &nOcc, &occ, mode, tloc, tfs);
 		t = omp_get_wtime() - t;
 		avgTime += t/(double)REPET;
 		avgnOcc += nOcc;
@@ -192,6 +195,8 @@ void runExperimentLocate(ParProgL *par, uint m){
 	ttt+=tt2-tt;
 	}
 	cout << "FINAL TOTAL TIME = " << (float)ttt/nREP << "s.\n";
+	cout << "TOTAL TIME LOCATE = " << tloc << '\n';
+	cout << "TOTAL TIME first-second occ = " << tfs << '\n';
 	cout << "nOcc found : " << int(avgnOcc)/nREP << endl;
 	avgnOcc /= (float)REPET;
 	cout << "Average CPU time per execution: " << (float)(ttt/(nREP*REPET)) << " s" << endl;
@@ -307,16 +312,8 @@ void testLocateLoad(ParProgL *par){
 			randPos = rand() % (par->n-m-2);
 			string query = sdsl::extract(par->index->FMI_TEST, randPos, randPos+m-1);
 			size_t occs = sdsl::count(par->index->FMI_TEST, query.begin(), query.begin()+m);
-			if (occs){
-				A = new ulong[occs];
-				auto locations = locate(par->index->FMI_TEST, query.begin(), query.begin()+m);
-				if (TRACE_L){
-					cout << "# of occurrences found with FMI_TEST(T) : " << occs << " =" << endl;
-					for(i=0; i<occs; i++)
-						cout << locations[i] << " ";
-					cout << endl;
-				}
-				//cout << "Total occurrences found with FMI = " << occs << endl;
+			/*if (occs){
+				A = new ulong[occs];dFMI = " << occs << endl;
 				//cout << "Primary locations..." << endl;
 				for(i=nPry=0; i<occs; i++){
 					//if (par->index->isPrimaryT(locations[i], m)){
@@ -328,11 +325,12 @@ void testLocateLoad(ParProgL *par){
 						//cout << "S " << i << ", " << locations[i] << endl;
 				}
 				//cout << endl;
-			}
+			}*/
 
 			strncpy((char*) pat, query.c_str(), m);
 			//cout << "Pattern = [" << pat << "]" << endl;
-			par->index->locate(pat, m, &nOcc, &occ,mode);
+			double tloc = 0.0, tfs = 0.0;
+			par->index->locate(pat, m, &nOcc, &occ,mode,tloc,tfs);
 
 			if(nPry != nOcc){
 				if (m>1){
