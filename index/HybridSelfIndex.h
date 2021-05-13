@@ -103,6 +103,7 @@ private:
 	bool isPrimary(ulong x, uint len, ulong *pIni, uint *dIni);
 	void locatePryOcc(uchar *pat, uint m, ulong *nOcc, ulong **L, ulong* currN);
 	void locateSecOcc(ulong l, ulong r, ulong posX, uint m, ulong *nOcc, ulong **occ, ulong *currN);
+	void locateSecOccAuxiliar(ulong l, ulong r, ulong posX, uint m, ulong *nOcc, vector<ulong> &occ, long &cont_tid,ulong *currN);
 	ulong searchPhraFilTxt(ulong x, uint *dx);
 	ulong searchPhraTxt(ulong x, ulong *pos, uint *len);
 
