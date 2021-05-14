@@ -168,7 +168,7 @@ void runExperimentLocate(ParProgL *par, uint m){
 	float avgnOcc;
 	char aFile[400];
 	char str[100];
-	double tt, tt2, ttt=0.0, tloc= 0.0, tfs = 0.0;
+	double ttt=0.0, tloc= 0.0, tfs = 0.0;
 	cout << "____________________________________________________" << endl;
 	cout << "  Locate " << REPET << " patterns of length m = " << m << endl;
 	avgTime = 0.0;
@@ -176,11 +176,6 @@ void runExperimentLocate(ParProgL *par, uint m){
 	int nREP= 1;
 	for(int i = 0; i < nREP; ++i){
 	ulong k, nOcc, *occ;
-	
-	
-
-
-	tt = omp_get_wtime();
 	for (k=0; k<REPET; k++){
 		//cout << "k=" << k << endl;
 		t = omp_get_wtime();
@@ -191,12 +186,11 @@ void runExperimentLocate(ParProgL *par, uint m){
 		if (nOcc)
 			delete [] occ;
 	}
-	tt2 = omp_get_wtime();
-	ttt+=tt2-tt;
+	ttt+=tloc+tfs;
 	}
 	cout << "FINAL TOTAL TIME = " << (float)ttt/nREP << "s.\n";
-	cout << "TOTAL TIME LOCATE = " << tloc << '\n';
-	cout << "TOTAL TIME first-second occ = " << tfs << '\n';
+	cout << "TOTAL TIME LOCATE = " << tloc/nREP << '\n';
+	cout << "TOTAL TIME first-second occ = " << tfs/nREP << '\n';
 	cout << "nOcc found : " << int(avgnOcc)/nREP << endl;
 	avgnOcc /= (float)REPET;
 	cout << "Average CPU time per execution: " << (float)(ttt/(nREP*REPET)) << " s" << endl;

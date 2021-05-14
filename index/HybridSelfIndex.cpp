@@ -1685,15 +1685,13 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 	tloc += t;
 	cout << "T locate = " << t << endl;
 	
-
-	if (nLoc > MIN_OCC){
+	if (nLoc){
 		t = omp_get_wtime();
 		ulong *A;
 		vector<long> cont_tid(nt,0);
 		vector<long> ps_tid(nt+1,0);
 		vector<vector<ulong>> a_tid(nt);
-		long cs = nLoc/nt;
-		int s = 0;
+		long long cs = nLoc/nt;
 		#pragma omp parallel shared(cont_tid, ps_tid,nLoc, list, nt,cs, occ, A)
 		{
 			int tid = omp_get_thread_num();
@@ -1701,7 +1699,7 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 			ulong pr;
 			uint dx;
 			long b = tid*cs;
-        	long e = b+cs > nLoc ? nLoc : b+cs;
+        	long e = tid == nt-1 ? nLoc : b+cs;
 			for(long i=b; i< e; i++){
 				if (isPrimary(list[i], m, &pr, &dx)){
 					a_tid[tid].push_back(getPosPhraT(pr) - dx);
@@ -1721,8 +1719,6 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 				}
 			}
 			#pragma omp barrier
-			
-
 			ulong nn = cont_tid[tid];
 			ulong r, currN;
 
@@ -1730,26 +1726,18 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 			for(long i=0; i<nn; i++){
 				if (findPredecesor(a_tid[tid][i], &r)){
 					locateSecOccAuxiliar(0, r, a_tid[tid][i], m, nOcc, a_tid[tid], cont_tid[tid],&currN);
-					//A = *occ;
 				}
 			}
 			#pragma omp barrier
 			#pragma omp single
-			{
-
-				
+			{	
 				for(int i = 0; i < nt; ++i)
 				{
-					//cout << cont_tid[i] << " ";
 					ps_tid[i+1] = ps_tid[i] + cont_tid[i];
-					//s += a_tid[i].size();
 				}
-				/*cout << endl;
-				cout << ps_tid[nt-1] << " " << ps_tid[nt] << endl; */
 				A = new ulong[ps_tid[nt]];
 				*nOcc = ps_tid[nt];
 			}
-			//int nn = a_tid[tid].size();
 			for(long i = 0; i < a_tid[tid].size(); ++i)
 			{
 				A[(i+ps_tid[tid])] = a_tid[tid][i];
@@ -1762,27 +1750,6 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 		tfs += t;
 		cout << "T loop + rec = " << t << endl;
 		cout << "------------" << endl;
-
-		/*ulong nn = ps_tid[nt]; //RECORDAR ASIGNAR VALOR A NN
-		// search secondary occurrence from primary ones...
-		*nOcc = nn;
-		
-		t = omp_get_wtime();
-		ulong r, currN;
-		currN = nLoc;
-		for(long i=0; i<nn; i++){
-			if (findPredecesor(A[i], &r)){
-				locateSecOcc(0, r, A[i], m, nOcc, occ, &currN);
-				A = *occ;
-			}
-		}
-		t = omp_get_wtime() - t;
-		cout << "T rec = " << t << endl;
-		cout << "------------" << endl;*/
-	}
-	else if(nLoc <= MIN_OCC)
-	{
-		auxiliarLocateUptoM(pat, m, nOcc, occ, list, nLoc);
 	}
 	else
 		*nOcc=0;
