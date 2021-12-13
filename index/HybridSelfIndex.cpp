@@ -27,13 +27,13 @@ HybridSelfIndex::HybridSelfIndex(char dirSaveLoad[300]){
 		//testPredecessor();
 	}
 	tLoad = getTime_ms() - tLoad;
-	cout << "====================================================" << endl;
+	/*cout << "====================================================" << endl;
 	cout << " ### Hybrid Self-Index Loaded in = " << tLoad/(1000.0*60.0) << " minutes." << endl;
 	cout << "====================================================" << endl << endl;
 
 	cout << "====================================================" << endl;
 	cout << " ### Index size " << sizeDS << " bytes = " << sizeDS/(1024.0*1024.0) << " MiB = " << (float)sizeDS*8.0/(float)n << " bpc" << endl;
-	cout << "====================================================" << endl << endl;
+	cout << "====================================================" << endl << endl;*/
 }
 
 HybridSelfIndex::HybridSelfIndex(char *parserFile, uint optM, char dirSaveLoad[300]) {
@@ -61,13 +61,13 @@ HybridSelfIndex::HybridSelfIndex(char *parserFile, uint optM, char dirSaveLoad[3
 
 	tConst = getTime_ms() - tConst;
 
-	cout << "====================================================" << endl;
+	/*cout << "====================================================" << endl;
 	cout << " ### Hybrid Self-Index built in = " << tConst/(1000.0*60.0) << " minutes." << endl;
 	cout << "====================================================" << endl << endl;
 
 	cout << "====================================================" << endl;
 	cout << " ### Index size " << sizeDS << " bytes = " << sizeDS/(1024.0*1024.0) << " MiB = " << (float)sizeDS*8.0/(float)n << " bpc" << endl;
-	cout << "====================================================" << endl << endl;
+	cout << "====================================================" << endl << endl;*/
 }
 #pragma endregion
 
@@ -1465,6 +1465,7 @@ ulong HybridSelfIndex::searchPhraTxt(ulong x, ulong *pos, uint *len){
 void HybridSelfIndex::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ, int mode, double &tloc, double &tfs){
 	if (m==1)
 		locateAChar(pat, nOcc, occ);
+		
 	else{
 		if (m<=M)
 		{
@@ -1536,7 +1537,7 @@ void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ, 
 	int nLoc = list.size();
 	t = omp_get_wtime() - t;
 	tloc+=t;
-	cout << "T locate = " << t << endl;
+	//cout << "T locate = " << t << endl;
 	
 	
 	if (nLoc){
@@ -1578,8 +1579,8 @@ void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ, 
 		}
 		t = omp_get_wtime() - t;
 		tfs+=t;
-		cout << "T loop + rec = " << t << endl;
-		cout << "------------" << endl;
+		/*cout << "T loop + rec = " << t << endl;
+		cout << "------------" << endl;*/
 	}else
 		*nOcc=0;
 
@@ -1683,7 +1684,7 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 	int nLoc = list.size();
 	t = omp_get_wtime() - t;
 	tloc += t;
-	cout << "T locate = " << t << endl;
+	//cout << "T locate = " << t << endl;
 	
 	if (nLoc){
 		t = omp_get_wtime();
@@ -1748,8 +1749,8 @@ void HybridSelfIndex::parallelLocateUptoM(uchar *pat, uint m, ulong *nOcc, ulong
 		*occ = A;
 		t = omp_get_wtime() - t;
 		tfs += t;
-		cout << "T loop + rec = " << t << endl;
-		cout << "------------" << endl;
+		/*cout << "T loop + rec = " << t << endl;
+		cout << "------------" << endl;*/
 	}
 	else
 		*nOcc=0;

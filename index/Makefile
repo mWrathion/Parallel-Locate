@@ -1,5 +1,6 @@
-SDSL_DIR=/home/wrathiontbp
-RMQ_DIR=/home/wrathiontbp/Documentos/rmq
+SDSL_DIR=/home/wrathiontbp/Tesis/sdsl-lite
+RMQ_DIR=/home/wrathiontbp/Tesis/rmq
+
 
 CPP=g++
 CPPFLAGS=-std=c++11 -O3 -DNDEBUG -march=native -fopenmp

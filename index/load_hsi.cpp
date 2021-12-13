@@ -7,6 +7,7 @@ uint REPET = 100;
 uint MAX_M = 160;
 
 int mode;
+char text[100];
 
 // Structure with all globals parameters program
 typedef struct {
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]) {
 	cout << "Running load_hsi_ms.cpp ..." << endl;
 
 
-	if(argc != 7){
+	if(argc != 8){
 		cout << "ERRORR !! " << endl;
 		cout << "load_hsi_ms's usage requires 2 parameters:" << endl;
 		cout << "<dirStore> the directory where to read the structures" << endl;
@@ -61,14 +62,14 @@ int main(int argc, char *argv[]) {
 	MAX_M = atoi(argv[4]);
 	REPET = atoi(argv[5]);
 	mode = atoi(argv[6]);
-	
+	strcpy(text,argv[7]);
 
-	cout << "load_hsi_ms parameters..." << endl;
+	/*cout << "load_hsi_ms parameters..." << endl;
 	cout << "Base Name path: " << par->prefixStore << endl;
 	cout << "dirPatt: " << par->dirPatt << endl;
 	cout << "prefixResult: " << par->prefixResult << endl;
 	cout << "MAX_M: " << MAX_M << endl;
-	cout << "REPET: " << REPET << endl;
+	cout << "REPET: " << REPET << endl;*/
 
 	par->index = new HybridSelfIndex(par->prefixStore);
 
@@ -76,8 +77,8 @@ int main(int argc, char *argv[]) {
 
 	par->n = par->index->n;
 	par->M = par->index->M;
-	cout << "n: " << par->n << endl;
-	cout << "M: " << par->M << endl;
+	//cout << "n: " << par->n << endl;
+	//cout << "M: " << par->M << endl;
 
 	
 
@@ -89,19 +90,19 @@ int main(int argc, char *argv[]) {
 		cout << "loading the FMI_TEST in " << fileName << " ..." << endl;
 
 		if (load_from_file(par->index->FMI_TEST, fileName)){
-			cout << " **  FMI length " << par->index->FMI_TEST.size() << endl;
+			//cout << " **  FMI length " << par->index->FMI_TEST.size() << endl;
 			if (par->index->FMI_TEST.size() != par->n+1){
 				cout << "ERROR. FMI length != n+1 = " << par->n+1 << endl;
 				exit(1);
 			}
-			cout << "====================================================" << endl;
+			//cout << "====================================================" << endl;
 			ulong sizeFMI = size_in_bytes(par->index->FMI_TEST);
-			cout << " ### FMI_TEST size " << sizeFMI << " bytes = " << sizeFMI/(1024.0*1024.0) << " MiB = " << (float)sizeFMI*8.0/(float)par->n << " bpc" << endl;
+			/*cout << " ### FMI_TEST size " << sizeFMI << " bytes = " << sizeFMI/(1024.0*1024.0) << " MiB = " << (float)sizeFMI*8.0/(float)par->n << " bpc" << endl;
 			cout << "====================================================" << endl << endl;
 
-			cout << "Test Locate()..." << endl;
+			cout << "Test Locate()..." << endl;*/
 			testLocateLoad(par);
-			cout << "Test Locate() OK !!" << endl;
+			//cout << "Test Locate() OK !!" << endl;
 
 			if (S_ISA <= 1024){
 				cout << "Running test extract().." << endl;
@@ -131,7 +132,7 @@ void loadPatterns(ParProgL *par, uint m){
 
 	strcpy(filePatt, "");
 	strcpy(filePatt, par->dirPatt);
-	cout << "Reading patterns from "<< filePatt << std::endl;
+	//cout << "Reading patterns from "<< filePatt << std::endl;
 
 	par->patt = new uchar*[REPET];
 
@@ -201,13 +202,14 @@ void runExperimentLocate(ParProgL *par, uint m){
 
 	strcpy(aFile, par->prefixResult);
 	strcpy(str, "");
-	sprintf(str, "locate_M%d_SA_%d_ISA_%d", par->index->M, S_SA, S_ISA);
+	sprintf(str, "locate_%s_%d", text, m);
 	strcat(aFile, str);
 	cout << "Resume File: " << aFile << endl;
 
 	FILE *fp = fopen(aFile, "a+" );
-	// [m] [M] [FMI_SA] [FMI_I_SA] [size (MiB)] [size bpc] [avgnOcc] [avg locate-time (mu)]
-	fprintf(fp, "%d %d %d %d %f %f %f %G\n", m, par->index->M, S_SA, S_ISA, par->index->sizeDS/(1024.0*1024.0), par->index->sizeDS*8.0/(float)par->n, avgnOcc, (avgTime/avgnOcc)*1000.0);
+	// [text] [m] [mode=nThreads] [FMI_SA] [size bpc] [avgnOcc] [avg locate-time (mu)]
+	
+	fprintf(fp, "%s_sa%d_m%d_t%d %f %f %f %G %f %f\n",text, S_SA, m, mode, par->index->sizeDS/(1024.0*1024.0), par->index->sizeDS*8.0/(float)par->n, avgnOcc, (float)((ttt/(nREP*REPET))/(avgnOcc/nREP))*1000000.0, (float)((tloc/(nREP*REPET))/(avgnOcc/nREP))*1000000.0,(float)((tfs/(nREP*REPET))/(avgnOcc/nREP))*1000000.0);
 	fclose(fp);
 }
 

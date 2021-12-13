@@ -15,7 +15,7 @@ using namespace rmqrmm;
 #define INI_SIZE 1000 			// Initial size of the array occ[ ] to locate symbols (string of length 1).
 
 // Sampling values for the FMI on the filtered text.
-#define S_SA 32
+#define S_SA 64
 #define S_ISA 1073741824		// If you not desire to display symbols, then set S_ISA with a larger power of 2
 
 #define SAMP_GC 16		// sampling size for Tables with Gap-Encoding for phrases in the filtered Text. We recommend to use a small value. 16 looks very well in the most of cases.
